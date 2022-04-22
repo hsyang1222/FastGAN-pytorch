@@ -44,8 +44,9 @@ if __name__ == "__main__":
     parser.add_argument('--ckpt', type=str)
     parser.add_argument('--artifacts', type=str, default=".", help='path to artifacts.')
     parser.add_argument('--cuda', type=int, default=0, help='index of gpu to use')
-    parser.add_argument('--start_iter', type=int, default=6)
-    parser.add_argument('--end_iter', type=int, default=10)
+    # --start_iter와 --end_iter는 train시 n_iter 사이에 있는 값이어야 한다.
+    parser.add_argument('--start_iter', type=int, default=3)
+    parser.add_argument('--end_iter', type=int, default=5)
 
     parser.add_argument('--dist', type=str, default='.')
     parser.add_argument('--size', type=int, default=256)

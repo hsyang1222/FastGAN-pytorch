@@ -1,0 +1,4 @@
+python train.py --path ./few-shot-image-datasets\few-shot-images\100-shot-obama\img --name ./100-shot-obama --batch_size=2
+cd ./train_results/100-shot-obama
+# eval.py의 start_iter와 end_iter가 train.py시 n_iter 사이의 값이어야 함을 유의
+python eval.py --n_sample 100

@@ -88,8 +88,11 @@ def train(args):
     else:
         dataset = ImageFolder(root=data_root, transform=trans)
 
+    # cpu 성능이 기본 세팅에 비해 부족하여, num_workers와 pin_memory 옵션을 제거함
+    # dataloader = iter(DataLoader(dataset, batch_size=batch_size, shuffle=False,
+    #                   sampler=InfiniteSamplerWrapper(dataset), num_workers=dataloader_workers, pin_memory=True))
     dataloader = iter(DataLoader(dataset, batch_size=batch_size, shuffle=False,
-                      sampler=InfiniteSamplerWrapper(dataset), num_workers=dataloader_workers, pin_memory=True))
+                                 sampler=InfiniteSamplerWrapper(dataset)))
     '''
     loader = MultiEpochsDataLoader(dataset, batch_size=batch_size, 
                                shuffle=True, num_workers=dataloader_workers, 
