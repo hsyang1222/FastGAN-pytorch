@@ -138,3 +138,9 @@ dmypy.json
 cython_debug/
 storage/*
 train_results/*
+
+# pycharm
+.idea/*
+
+# venv
+./vem_for_mrcnn_python/*
