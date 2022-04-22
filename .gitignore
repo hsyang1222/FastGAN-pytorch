@@ -143,4 +143,7 @@ train_results/*
 .idea/*
 
 # venv
-./vem_for_mrcnn_python/*
+vem_for_mrcnn_python/*
+
+# __pycache__
+lpips/__pycache__/*
