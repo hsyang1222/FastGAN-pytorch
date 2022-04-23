@@ -147,3 +147,6 @@ vem_for_mrcnn_python/*
 
 # __pycache__
 lpips/__pycache__/*
+
+# info_pickle
+infor_pickle/*
