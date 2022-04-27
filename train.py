@@ -16,11 +16,23 @@ from operation import ImageFolder, InfiniteSamplerWrapper
 from diffaug import DiffAugment
 policy = 'color,translation'
 import lpips
+import time
 percept = lpips.PerceptualLoss(model='net-lin', net='vgg', use_gpu=True)
+_start_time = time.time()
 
 
-#torch.backends.cudnn.benchmark = True
+def tic():
+    global _start_time
+    _start_time = time.time()
 
+def tac(rounding=True):
+    if rounding:
+        t_sec = round(time.time() - _start_time)
+    else:
+        t_sec = time.time() - _start_time
+    (t_min, t_sec) = divmod(t_sec,60)
+    (t_hour,t_min) = divmod(t_min,60)
+    print('Time passed: {}hour:{}min:{}sec'.format(t_hour,t_min,t_sec))
 
 def crop_image_by_part(image, part):
     hw = image.shape[2]//2
@@ -198,8 +210,10 @@ if __name__ == "__main__":
     parser.add_argument('--im_size', type=int, default=1024, help='image resolution')
     parser.add_argument('--ckpt', type=str, default='None', help='checkpoint weight path if have one')
 
-
     args = parser.parse_args()
     print(args)
 
+    tic()
     train(args)
+    tac()
+
