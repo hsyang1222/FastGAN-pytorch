@@ -6,7 +6,6 @@ from torch.utils.data.dataloader import DataLoader
 from torchvision import transforms
 from torchvision import utils as vutils
 import wandb
-import matplotlib.pyplot as plt
 
 import argparse
 import random
@@ -19,7 +18,7 @@ from diffaug import DiffAugment
 policy = 'color,translation'
 import lpips
 import time
-percept = None
+percept = lpips.PerceptualLoss(model='net-lin', net='vgg', use_gpu=True)
 _start_time = time.time()
 
 import generative_model_score
@@ -65,8 +64,6 @@ def train_d(net, data, label="real"):
         err.backward()
         return pred.mean().item()
         
-import numpy as np        
-to_img = lambda x : ((torch.clip(x, -1, 1)+1)/2*255).numpy().astype(np.uint8)
 
 def train(args):
 
@@ -84,13 +81,10 @@ def train(args):
     multi_gpu = False
     dataloader_workers = 8
     current_iteration = 0
-    save_interval = 10
+    save_interval = 100
     saved_model_folder, saved_image_folder = get_dir(args)
     
     device = torch.device(args.device)
-    
-    global percept
-    percept = lpips.PerceptualLoss(model='net-lin', net='vgg', use_gpu=True, gpu_ids=[device])
     
     transform_list = [
             transforms.Resize((int(im_size),int(im_size))),
@@ -239,27 +233,28 @@ def train(args):
             score_model.calculate_fake_image_statistics()
             metrics = score_model.calculate_generative_score()
             
-            with torch.no_grad() : 
-                fig, ax = plt.subplots(1,1, figsize=(8,32))
-                ax.imshow(to_img(fake_images[0][0].detach().cpu().permute(1,2,0)))
+        with torch.no_grad() : 
+            fig, ax = plt.subplots(1,1, figsize=(8,32))
+            ax.imshow(fake_images[0][0].detach().cpu().permute(1,2,0))
 
-            log_dict = {'err_dr' : err_dr,
-                       'err_g' : err_g,
-                       # 'sum_per_loss':sum_per_loss,
-                       'fig' :  wandb.Image(fig),
-                        #'density_fig' : wandb.Image(density_fig),
-                        #'lr' : scheduler._last_lr[0],
-                        #'sum_dis_loss_for_dis' : sum_dis_loss_for_dis,
-                        #'sum_dis_loss_for_en' : sum_dis_loss_for_en,
-                        #'dis_for_gaussian' : dis_for_gaussian.mean(),
-                        #'dis_for_encoded' : dis_for_encoded.mean(),
-                     }
-            log_dict.update(metrics)
-            if args.wandb : 
-                wandb.log(log_dict)
-            else : 
-                print(log_dict)
-            plt.close()
+        density_fig = density_compare_fig(encoder, dataloader, device)
+        log_dict = {'err_dr' : err_dr,
+                   'err_g' : err_g,
+                   # 'sum_per_loss':sum_per_loss,
+                   'fig' :  wandb.Image(fig),
+                    #'density_fig' : wandb.Image(density_fig),
+                    #'lr' : scheduler._last_lr[0],
+                    #'sum_dis_loss_for_dis' : sum_dis_loss_for_dis,
+                    #'sum_dis_loss_for_en' : sum_dis_loss_for_en,
+                    #'dis_for_gaussian' : dis_for_gaussian.mean(),
+                    #'dis_for_encoded' : dis_for_encoded.mean(),
+                 }
+        log_dict.update(metrics)
+        if args.wandb : 
+            wandb.log(log_dict)
+        else : 
+            print(log_dict)
+        plt.close()
             
             
             

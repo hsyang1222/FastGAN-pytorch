@@ -1,0 +1,195 @@
+diff --git a/generative_model_score.py b/generative_model_score.py
+index 54b2f9b..9134d6b 100644
+--- a/generative_model_score.py
++++ b/generative_model_score.py
+@@ -5,6 +5,7 @@ import numpy as np
+ import prdc
+ import pickle
+ import matplotlib.pyplot as plt
++from torch.utils.data import TensorDataset, DataLoader
+ import tqdm
+ 
+ 
+@@ -183,14 +184,14 @@ class GenerativeModelScore:
+             self.fake_predict_softmax = torch.cat([self.fake_predict_softmax, fake_predict_softmax.detach().cpu()])
+             self.fake_feature = torch.cat([self.fake_feature, fake_feature.detach().cpu()])            
+             
+-    def lazy_forward(self, real_forward=False, fake_image_tensor=None, device='cuda:0'):
++    def lazy_forward(self, real_forward=False, fake_forward=True, fake_image_tensor=None, device='cpu'):
+         assert self.lazy, "lazy_forward only run in lazy mode. call lazy_mode() first."
+         train_loader = self.trainloader
+         if real_forward:
+             real_predict_softmax_list, real_feature_list = [], []
+             print("generate real images info")
+             for each_batch in tqdm.tqdm(train_loader, desc="[Generative Score]"):
+-                real_predict_softmax, real_feature = self.real_forward(each_batch[0].to(device))
++                real_predict_softmax, real_feature = self.real_forward(each_batch.to(device))
+                 real_predict_softmax_list.append(real_predict_softmax.detach().cpu())
+                 real_feature_list.append(real_feature.detach().cpu())
+             self.real_predict_softmax = torch.cat(real_predict_softmax_list)
+@@ -291,19 +292,20 @@ class GenerativeModelScore:
+         else:
+             return metrics
+ 
+-    def load_or_gen_realimage_info(self, device):
++    def load_or_gen_realimage_info(self, device) :
+         import os
++        device='cuda'
+         hashed_name = self.trainloaderinfo_to_hashedname(self.trainloader)
+-        full_path = './info_pickle'+'/'+hashed_name
+-        if os.path.exists(full_path):
++        full_path = '../info_pickle'+'/'+hashed_name
++        if os.path.exists(full_path) : 
+             print("[Generative Score]find real image info... use it")
+             self.load_real_images_info(full_path)
+-        else:
++        else : 
+             print("[Generative Score]cannot find real image info. generate...", end='')
+             self.model_to(device)
+             self.lazy_forward(real_forward=True, device=device)
+             self.calculate_real_image_statistics()
+-            self.save_real_images_info(file_name=full_path)
++            self.save_real_images_info(file_name = full_path)
+             self.model_to('cpu')
+             print("done")
+         
+@@ -340,5 +342,3 @@ class GenerativeModelScore:
+         if real is True and epoch == 0:
+             self.hidden_representations_of_true.append(hidden_representation)
+         return hidden_representation
+-
+-
+diff --git a/train.py b/train.py
+index d14a4a5..ec987cc 100644
+--- a/train.py
++++ b/train.py
+@@ -5,6 +5,8 @@ import torch.nn.functional as F
+ from torch.utils.data.dataloader import DataLoader
+ from torchvision import transforms
+ from torchvision import utils as vutils
++import wandb
++import matplotlib.pyplot as plt
+ 
+ import argparse
+ import random
+@@ -20,6 +22,7 @@ import time
+ percept = lpips.PerceptualLoss(model='net-lin', net='vgg', use_gpu=True)
+ _start_time = time.time()
+ 
++import generative_model_score
+ 
+ def tic():
+     global _start_time
+@@ -76,14 +79,14 @@ def train(args):
+     nlr = 0.0002
+     nbeta1 = 0.5
+     use_cuda = True
+-    multi_gpu = True
++    multi_gpu = False
+     dataloader_workers = 8
+     current_iteration = 0
+     save_interval = 100
+     saved_model_folder, saved_image_folder = get_dir(args)
+     
+     device = torch.device(args.device)
+-
++    
+     transform_list = [
+             transforms.Resize((int(im_size),int(im_size))),
+             transforms.RandomHorizontalFlip(),
+@@ -101,8 +104,15 @@ def train(args):
+     # cpu 성능이 기본 세팅에 비해 부족하여, num_workers와 pin_memory 옵션을 제거함
+     # dataloader = iter(DataLoader(dataset, batch_size=batch_size, shuffle=False,
+     #                   sampler=InfiniteSamplerWrapper(dataset), num_workers=dataloader_workers, pin_memory=True))
+-    dataloader = iter(DataLoader(dataset, batch_size=batch_size, shuffle=False,
+-                                 sampler=InfiniteSamplerWrapper(dataset)))
++    #dataloader = iter(DataLoader(dataset, batch_size=batch_size, shuffle=False,
++    #                             sampler=InfiniteSamplerWrapper(dataset)))
++    dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True,
++                                            num_workers=16, pin_memory=True)
++    
++    score_model = generative_model_score.GenerativeModelScore(dataloader)
++    score_model.lazy_mode(True) 
++    score_model.load_or_gen_realimage_info(device)
++    
+     '''
+     loader = MultiEpochsDataLoader(dataset, batch_size=batch_size, 
+                                shuffle=True, num_workers=dataloader_workers, 
+@@ -142,8 +152,11 @@ def train(args):
+     optimizerG = optim.Adam(netG.parameters(), lr=nlr, betas=(nbeta1, 0.999))
+     optimizerD = optim.Adam(netD.parameters(), lr=nlr, betas=(nbeta1, 0.999))
+     
++    if args.wandb : 
++        wandb.init(project='FastGan', config=args)
++    
+     for iteration in tqdm(range(current_iteration, total_iterations+1)):
+-        real_image = next(dataloader)
++        real_image = next(iter(dataloader))
+         real_image = real_image.to(device)
+         current_batch_size = real_image.size(0)
+         noise = torch.Tensor(current_batch_size, nz).normal_(0, 1).to(device)
+@@ -195,6 +208,56 @@ def train(args):
+                         'g_ema': avg_param_G,
+                         'opt_g': optimizerG.state_dict(),
+                         'opt_d': optimizerD.state_dict()}, saved_model_folder+'/all_%d.pth'%iteration)
++            
++            
++            fake_images_list = []
++            netG.eval()
++
++            for data in tqdm(dataloader, desc="[Generative Score]gen fake image...") :
++                with torch.no_grad() : 
++                    noise = torch.Tensor(current_batch_size, nz).normal_(0, 1).to(device)
++                    fake_images = netG(noise)
++                    fake_images_list.append(fake_images[0].cpu())
++
++            netG.to('cpu')
++            netD.to('cpu') 
++            #loss_fn.to('cpu')
++
++            fake_image_tensor = torch.cat(fake_images_list)
++            score_model.model_to(device)
++            score_model.lazy_forward(fake_forward=True, fake_image_tensor=fake_image_tensor, device=device)
++            score_model.model_to('cpu')
++            netG.to(device)
++            netD.to(device)
++            #loss_fn.to(device)
++            score_model.calculate_fake_image_statistics()
++            score_model.calculate_fake_image_statistics()
++            metrics = score_model.calculate_generative_score()
++            
++        with torch.no_grad() : 
++            fig, ax = plt.subplots(1,1, figsize=(8,32))
++            ax.imshow(fake_images[0][0].detach().cpu().permute(1,2,0))
++
++        log_dict = {'err_dr' : err_dr,
++                   'err_g' : err_g,
++                   # 'sum_per_loss':sum_per_loss,
++                   'fig' :  wandb.Image(fig),
++                    #'density_fig' : wandb.Image(density_fig),
++                    #'lr' : scheduler._last_lr[0],
++                    #'sum_dis_loss_for_dis' : sum_dis_loss_for_dis,
++                    #'sum_dis_loss_for_en' : sum_dis_loss_for_en,
++                    #'dis_for_gaussian' : dis_for_gaussian.mean(),
++                    #'dis_for_encoded' : dis_for_encoded.mean(),
++                 }
++        log_dict.update(metrics)
++        if args.wandb : 
++            wandb.log(log_dict)
++        else : 
++            print(log_dict)
++        plt.close()
++            
++            
++            
+ 
+ if __name__ == "__main__":
+     parser = argparse.ArgumentParser(description='region gan')
+@@ -207,6 +270,7 @@ if __name__ == "__main__":
+     parser.add_argument('--batch_size', type=int, default=8, help='mini batch number of images')
+     parser.add_argument('--im_size', type=int, default=1024, help='image resolution')
+     parser.add_argument('--ckpt', type=str, default='None', help='checkpoint weight path if have one')
++    parser.add_argument('--wandb', type=bool, default=False, help='log wandb')
+ 
+     args = parser.parse_args()
+     print(args)

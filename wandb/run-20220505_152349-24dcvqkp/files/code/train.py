@@ -19,7 +19,7 @@ from diffaug import DiffAugment
 policy = 'color,translation'
 import lpips
 import time
-percept = None
+percept = lpips.PerceptualLoss(model='net-lin', net='vgg', use_gpu=True)
 _start_time = time.time()
 
 import generative_model_score
@@ -65,7 +65,6 @@ def train_d(net, data, label="real"):
         err.backward()
         return pred.mean().item()
         
-import numpy as np        
 to_img = lambda x : ((torch.clip(x, -1, 1)+1)/2*255).numpy().astype(np.uint8)
 
 def train(args):
@@ -88,9 +87,6 @@ def train(args):
     saved_model_folder, saved_image_folder = get_dir(args)
     
     device = torch.device(args.device)
-    
-    global percept
-    percept = lpips.PerceptualLoss(model='net-lin', net='vgg', use_gpu=True, gpu_ids=[device])
     
     transform_list = [
             transforms.Resize((int(im_size),int(im_size))),

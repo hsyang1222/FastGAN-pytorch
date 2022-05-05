@@ -1,0 +1,29 @@
+{
+    "os": "Linux-5.13.0-40-generic-x86_64-with-glibc2.31",
+    "python": "3.9.7",
+    "heartbeatAt": "2022-05-05T06:36:27.901678",
+    "startedAt": "2022-05-05T06:36:26.793949",
+    "docker": null,
+    "gpu": "NVIDIA GeForce RTX 3090",
+    "gpu_count": 4,
+    "cpu_count": 64,
+    "cuda": null,
+    "args": [
+        "--path=few-shot-image-datasets/few-shot-images/100-shot-obama/img",
+        "--device=cuda:1",
+        "--wandb=True",
+        "--batch_size=16"
+    ],
+    "state": "running",
+    "program": "/home/hsyang/FastGAN-pytorch_AAE/train.py",
+    "codePath": "train.py",
+    "git": {
+        "remote": "https://github.com/hsyang1222/FastGAN-pytorch.git",
+        "commit": "715c359aa8577f51a874b9db1356d1266b5ee78d"
+    },
+    "email": "hsyang@neurophet.com",
+    "root": "/home/hsyang/FastGAN-pytorch_AAE",
+    "host": "user-SYS-7049GP-TRT",
+    "username": "hsyang",
+    "executable": "/home/hsyang/anaconda3/envs/neurophet_torch2/bin/python"
+}

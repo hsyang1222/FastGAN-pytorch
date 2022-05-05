@@ -70,7 +70,7 @@ class DistModel(BaseModel):
 
             if(not is_train):
                 print('Loading model from: %s'%model_path)
-                self.net.load_state_dict(torch.load(model_path, **kw), strict=False)
+                self.net.load_state_dict(torch.load(model_path, **kw, map_location='cpu'), strict=False)
 
         elif(self.model=='net'): # pretrained network
             self.net = networks.PNetLin(pnet_rand=pnet_rand, pnet_type=net, lpips=False)

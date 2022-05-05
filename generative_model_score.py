@@ -5,6 +5,7 @@ import numpy as np
 import prdc
 import pickle
 import matplotlib.pyplot as plt
+from torch.utils.data import TensorDataset, DataLoader
 import tqdm
 
 
@@ -183,14 +184,14 @@ class GenerativeModelScore:
             self.fake_predict_softmax = torch.cat([self.fake_predict_softmax, fake_predict_softmax.detach().cpu()])
             self.fake_feature = torch.cat([self.fake_feature, fake_feature.detach().cpu()])            
             
-    def lazy_forward(self, real_forward=False, fake_image_tensor=None, device='cuda:0'):
+    def lazy_forward(self, real_forward=False, fake_forward=True, fake_image_tensor=None, device='cpu'):
         assert self.lazy, "lazy_forward only run in lazy mode. call lazy_mode() first."
         train_loader = self.trainloader
         if real_forward:
             real_predict_softmax_list, real_feature_list = [], []
             print("generate real images info")
             for each_batch in tqdm.tqdm(train_loader, desc="[Generative Score]"):
-                real_predict_softmax, real_feature = self.real_forward(each_batch[0].to(device))
+                real_predict_softmax, real_feature = self.real_forward(each_batch.to(device))
                 real_predict_softmax_list.append(real_predict_softmax.detach().cpu())
                 real_feature_list.append(real_feature.detach().cpu())
             self.real_predict_softmax = torch.cat(real_predict_softmax_list)
@@ -291,19 +292,19 @@ class GenerativeModelScore:
         else:
             return metrics
 
-    def load_or_gen_realimage_info(self, device):
+    def load_or_gen_realimage_info(self, device) :
         import os
         hashed_name = self.trainloaderinfo_to_hashedname(self.trainloader)
-        full_path = './info_pickle'+'/'+hashed_name
-        if os.path.exists(full_path):
+        full_path = '../info_pickle'+'/'+hashed_name
+        if os.path.exists(full_path) : 
             print("[Generative Score]find real image info... use it")
             self.load_real_images_info(full_path)
-        else:
+        else : 
             print("[Generative Score]cannot find real image info. generate...", end='')
             self.model_to(device)
             self.lazy_forward(real_forward=True, device=device)
             self.calculate_real_image_statistics()
-            self.save_real_images_info(file_name=full_path)
+            self.save_real_images_info(file_name = full_path)
             self.model_to('cpu')
             print("done")
         
@@ -340,5 +341,3 @@ class GenerativeModelScore:
         if real is True and epoch == 0:
             self.hidden_representations_of_true.append(hidden_representation)
         return hidden_representation
-
-

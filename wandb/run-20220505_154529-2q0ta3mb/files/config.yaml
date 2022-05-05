@@ -1,0 +1,50 @@
+wandb_version: 1
+
+_wandb:
+  desc: null
+  value:
+    cli_version: 0.12.11
+    code_path: code/train.py
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    python_version: 3.9.7
+    start_time: 1651733129
+    t:
+      1:
+      - 1
+      - 5
+      - 41
+      3:
+      - 16
+      4: 3.9.7
+      5: 0.12.11
+      8:
+      - 5
+batch_size:
+  desc: null
+  value: 16
+ckpt:
+  desc: null
+  value: None
+device:
+  desc: null
+  value: cuda:2
+im_size:
+  desc: null
+  value: 1024
+iter:
+  desc: null
+  value: 50000
+name:
+  desc: null
+  value: test1
+path:
+  desc: null
+  value: few-shot-image-datasets/few-shot-images/100-shot-panda/img
+start_iter:
+  desc: null
+  value: 0
+wandb:
+  desc: null
+  value: true
