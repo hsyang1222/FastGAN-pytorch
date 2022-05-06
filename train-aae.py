@@ -128,7 +128,7 @@ def train(args):
     #dataloader = iter(DataLoader(dataset, batch_size=batch_size, shuffle=False,
     #                             sampler=InfiniteSamplerWrapper(dataset)))
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True,
-                                            num_workers=16, pin_memory=True)
+                                            num_workers=16, pin_memory=True, drop_last=True)
     
     score_model = generative_model_score.GenerativeModelScore(dataloader)
     score_model.lazy_mode(True) 
@@ -158,7 +158,7 @@ def train(args):
             torch.nn.Conv2d(3,1,4,2,1),
         ).to(device)
     netFD = DirectDiscriminator().to(device)
-    netTFD = TransposeDiscriminator().to(device)
+    netTFD = TransposeDiscriminator(args.batch_size).to(device)
     netM = torch.nn.Linear(256,256).to(device)
 
     avg_param_G = copy_G_params(netG)
@@ -189,13 +189,16 @@ def train(args):
         wandb.init(project='FastGan', config=args)
     
     for iteration in tqdm(range(current_iteration, total_iterations+1)):
+        netG.train()
+        netD.train()
+        netM.train()
         real_image = next(iter(dataloader))
         real_image = real_image.to(device)
         real_image = DiffAugment(real_image, policy=policy)
         
         
         with torch.no_grad():
-            mapped_feature = netM(torch.randn(data.size(0), 256, device=device))
+            mapped_feature = netM(torch.randn(real_image.size(0), 256, device=device))
         
         with torch.set_grad_enabled(True):
             # train Discriminator for image
@@ -221,22 +224,10 @@ def train(args):
             # train Generator and Encoder for image reconsturction
             encoded_feature = netFE(F.interpolate(real_image, 128)).view(-1,256)
             fake_images = netG(encoded_feature)
-            if epoch < 10 : 
-                percept_loss = ssim_or_l1(fake_images[0], real_image)
-            else : 
-                percept_loss = percept(fake_images[0], real_image).mean()
-     
-    
-        with torch.set_grad_enabled(True):
-            # train Generator and Encoder for image reconsturction
-            encoded_feature = netFE(F.interpolate(real_image, 128)).view(-1,256)
-            fake_images = netG(encoded_feature)
-            if epoch < 10 : 
-                percept_loss = ssim_or_l1(fake_images[0], real_image)
-            else : 
-                percept_loss = percept(fake_images[0], real_image).mean()
-            #ssim_loss = ssim_or_l1(fake_images[0], real_image)
-            
+            #if epoch < 10 : 
+            percept_loss = ssim_or_l1(fake_images[0], real_image)
+            #else : 
+            #    percept_loss = percept(fake_images[0], real_image).mean()
             
             #err_E_G = torch.abs(rec_image - small_size_real_image).mean() +  torch.abs(fake_image - real_image).mean() #percept( fake_image, real_image ).sum() #- pred_g.mean()
             err_E_G = percept_loss #+ rec16_loss + (rec32_loss +rec64_loss + rec128_loss + rec256_loss)
@@ -254,7 +245,7 @@ def train(args):
             optimizerFD.step()
 
             # train Mapper
-            mapped_feature = netM(torch.randn(data.size(0), 256, device=device))
+            mapped_feature = netM(torch.randn(real_image.size(0), 256, device=device))
             err_M = (netFD(mapped_feature)-1).mean()**2  + (netTFD(mapped_feature)-1).mean()**2
             optimizerM.zero_grad()
             err_M.backward()
@@ -295,12 +286,16 @@ def train(args):
 
             for data in tqdm(dataloader, desc="[Generative Score]gen fake image...") :
                 with torch.no_grad() : 
-                    noise = torch.Tensor(current_batch_size, nz).normal_(0, 1).to(device)
+                    noise = torch.Tensor(real_image.size(0), nz).normal_(0, 1).to(device)
                     fake_images = netG(netM(noise))
                     fake_images_list.append(fake_images[0].cpu())
 
             netG.to('cpu')
             netD.to('cpu') 
+            netM.to('cpu')
+            netFE.to('cpu')
+            netFD.to('cpu')
+            netTFD.to('cpu')
             #loss_fn.to('cpu')
 
             fake_image_tensor = torch.cat(fake_images_list)
@@ -309,6 +304,10 @@ def train(args):
             score_model.model_to('cpu')
             netG.to(device)
             netD.to(device)
+            netM.to(device)
+            netFE.to(device)
+            netFD.to(device)
+            netTFD.to(device)
             #loss_fn.to(device)
             score_model.calculate_fake_image_statistics()
             score_model.calculate_fake_image_statistics()

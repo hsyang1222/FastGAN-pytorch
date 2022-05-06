@@ -1,4 +1,5 @@
 from torch import nn
+import torch
 
 class LinBlock(nn.Module) : 
     def __init__(self, infeature=256, outfeature=128) :
@@ -28,7 +29,7 @@ class DirectDiscriminator(nn.Module):
         return x.view(-1,1)
     
 class TransposeDiscriminator(nn.Module):        
-    def __init__(self, batch_size=batch_size, feature=256) : 
+    def __init__(self, batch_size=16, feature=256) : 
         super(TransposeDiscriminator, self).__init__()
         self.layer = [nn.Sequential(
             LinBlock(batch_size, batch_size),
