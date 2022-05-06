@@ -161,6 +161,8 @@ def train(args):
         wandb.init(project='FastGan', config=args)
     
     for iteration in tqdm(range(current_iteration, total_iterations+1)):
+        netG.train()
+        netD.train()
         real_image = next(iter(dataloader))
         real_image = real_image.to(device)
         current_batch_size = real_image.size(0)
